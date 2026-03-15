@@ -1,0 +1,485 @@
+import { useCallback, useEffect, useState, type JSX } from "react"
+import "./App.css"
+import clsx from "clsx";
+
+const BASE_URL_RGB = import.meta.env.VITE_BASE_URL_RGB;
+const BASE_URL_DATA = import.meta.env.VITE_BASE_URL_DATA;
+
+interface IError {
+    headline: string;
+    message: string;
+}
+
+export const App = () => {
+
+    const [loading, setLoading] = useState<boolean>(true)
+    const [error, setError] = useState<IError | null>(null);
+
+    const fetchAndHandle = useCallback(async function fetchAndHandle<T>(fetchF: () => Promise<Response>, handleF: (t: T) => Promise<void>): Promise<boolean> {
+        setLoading(true);
+        let errorMessage = "";
+
+        try {
+            const res = await fetchF();
+
+            if (res.ok) {
+                if (res.status === 200) {
+                    const json: T = await res.json();
+                    await handleF(json);
+                }
+
+                setLoading(false);
+                return true;
+            } else {
+                errorMessage = res.status + "\n" + res.body;
+            }
+        } catch (e) {
+            if (e instanceof TypeError || e instanceof SyntaxError) {
+                errorMessage += e.message;
+                errorMessage += e.stack;
+            } else {
+                errorMessage += JSON.stringify(e);
+            }
+        }
+
+        setError({ headline: "Request not successful", message: errorMessage });
+        setLoading(false);
+        return false;
+    }, []);
+
+    const [mode, setMode] = useState<number>(0);
+
+    useEffect(() => {
+        const getMode = async () => fetchAndHandle<{ mode: number; }>(() => fetch(`${BASE_URL_RGB}/mode`), async json => setMode(json.mode));
+        getMode();
+    }, [fetchAndHandle]);
+
+    const updateMode = async (mode: number) => {
+        const success = await fetchAndHandle<void>(() => fetch(`${BASE_URL_RGB}/mode`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ mode }),
+        }), async () => { });
+
+        if (success) {
+            setMode(mode);
+        }
+    }
+
+    return (
+        <div className="h-screen bg-[#008080] flex flex-col font-sans">
+            <div className="flex-1 flex items-center justify-center">
+                <Window modal show={loading} title="Loading" content={<Win98ProgressBar />} />
+                <Window show={true} title="Settings" content={<><Tabs current={mode} onChange={updateMode} />
+                    {mode === 0 && <TimetableTab fetchAndHandle={fetchAndHandle} />}
+                    {mode === 1 && <CustomTextTab fetchAndHandle={fetchAndHandle} />}
+                </>} />
+                <Window modal closeAction={() => setError(null)} show={!!error} title="Error" content={<div className="flex gap-3 items-start">
+                    <Win98ErrorIcon />
+
+                    <div className="text-sm">
+                        <p className="font-bold mb-1">{error?.headline}</p>
+                        <p>{error?.message}</p>
+                    </div>
+                </div>} />
+            </div>
+
+            <Taskbar />
+        </div>
+    )
+}
+
+function Win98ProgressBar() {
+    return (
+        <div
+            className="
+        w-full
+        h-4
+        bg-white
+        border
+        border-t-[#404040]
+        border-l-[#404040]
+        border-r-white
+        border-b-white
+        overflow-hidden
+      "
+        >
+            <div className="h-full win98-progress-fill" />
+        </div>
+    );
+}
+
+function Win98ErrorIcon() {
+    return (
+        <div
+            className="
+        w-8 h-8
+        rounded-full
+        bg-[#ff0000]
+        border border-black
+        flex items-center justify-center
+        text-white
+        font-bold
+        text-lg
+        leading-none
+        select-none
+      "
+        >
+            ×
+        </div>
+    );
+}
+
+function Taskbar() {
+    return (
+        <div
+            className="
+        h-10
+        bg-[#c0c0c0]
+        border-t-2 border-t-white
+        flex items-center
+        px-2
+        gap-2
+      "
+        >
+            <button className="win98-btn font-bold">Start</button>
+
+            <div
+                className="
+          bg-[#c0c0c0]
+          px-3 py-1
+          border
+          border-t-[#404040]
+          border-l-[#404040]
+          border-r-white
+          border-b-white
+          text-sm
+        "
+            >
+                Settings
+            </div>
+
+            {/* system tray spacer */}
+            <div className="ml-auto" />
+
+            <Clock />
+        </div>
+    );
+}
+
+function Clock() {
+    const [time, setTime] = useState(() => new Date());
+
+    useEffect(() => {
+        const tick = () => setTime(new Date());
+
+        // align to the next minute
+        const now = new Date();
+        const msUntilNextMinute =
+            (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
+
+        const timeout = setTimeout(() => {
+            tick();
+            const interval = setInterval(tick, 60_000);
+            return () => clearInterval(interval);
+        }, msUntilNextMinute);
+
+        return () => clearTimeout(timeout);
+    }, []);
+
+    const formatted = time.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+    });
+
+    return (
+        <div
+            className="
+        px-3 py-1
+        text-sm
+        bg-[#c0c0c0]
+        border
+        border-t-[#404040]
+        border-l-[#404040]
+        border-r-white
+        border-b-white
+        min-w-[56px]
+        text-center
+      "
+        >
+            {formatted}
+        </div>
+    );
+}
+
+interface IWindowProps {
+    show: boolean;
+    title: string;
+    content: JSX.Element;
+    modal?: boolean;
+    closeAction?: () => void;
+}
+
+function Window({ show, title, content, modal = false, closeAction }: IWindowProps) {
+    if (!show) return null;
+
+    return (
+        <div
+            className={clsx({ "fixed inset-0 flex items-center justify-center z-50": modal, "relative": !modal })}
+        >
+            {modal && (
+                <div className="absolute inset-0 bg-black opacity-40"></div>
+            )}
+
+            <div
+                className={`
+          bg-[#c0c0c0] border border-t-white border-l-white border-r-[#404040] border-b-[#404040]
+          w-[420px]
+          z-50
+        `}
+            >
+                <TitleBar title={title} closeAction={closeAction} />
+                <div className="p-3">{content}</div>
+            </div>
+        </div>
+    );
+}
+
+interface ITitleBarProps {
+    title: string;
+    closeAction?: () => void;
+}
+
+function TitleBar({ title, closeAction }: ITitleBarProps) {
+    return (
+        <div
+            className="
+        bg-[#000080]
+        text-white
+        px-2 py-1
+        flex justify-between items-center
+        text-sm
+      "
+        >
+            <span>{title}</span>
+
+            <div className={clsx({ "hidden": !closeAction }, "flex gap-1")}>
+                <button
+                    className="
+      w-4 h-4
+      bg-[#c0c0c0]
+      border border-black
+      text-black
+      text-[10px]
+      font-bold
+      flex items-center justify-center
+      leading-none
+      select-none
+    "
+                    onClick={closeAction}>
+                    ×
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function Tabs({
+    current,
+    onChange,
+}: {
+    current: number;
+    onChange: (mode: number) => void;
+}) {
+    return (
+        <div className="flex gap-1 mb-3">
+            <button
+                onClick={() => onChange(0)}
+                className={current === 0 ? "win98-tab-active" : "win98-tab"}
+            >
+                Timetable
+            </button>
+
+            <button
+                onClick={() => onChange(1)}
+                className={current === 1 ? "win98-tab-active" : "win98-tab"}
+            >
+                Custom Text
+            </button>
+        </div>
+    );
+}
+
+interface ILio {
+    id: string,
+    provider: string,
+    station: string,
+    line: string,
+    direction: string
+};
+
+interface ITimetableTabProps {
+    fetchAndHandle: <T>(fetchF: () => Promise<Response>, handleF: (t: T) => Promise<void>) => Promise<boolean>
+};
+
+const TimetableTab = ({ fetchAndHandle }: ITimetableTabProps) => {
+
+    const [lios, setLios] = useState<ILio[]>([]);
+    const [newLio, setNewLio] = useState<Partial<ILio>>({});
+
+    const getLios = useCallback(() =>
+        fetchAndHandle<ILio[]>(() => fetch(`${BASE_URL_DATA}/lio`), async json => setLios(json)), [fetchAndHandle]);
+
+    useEffect(() => {
+        getLios();
+    }, [getLios]);
+
+    const deleteLio = (id: string) => fetchAndHandle<void>(() => fetch(`${BASE_URL_DATA}/lio/${id}`, {
+        method: "DELETE"
+    }), async () => { getLios(); });
+
+
+    const postLio = () => fetchAndHandle<ILio>(() => fetch(`${BASE_URL_DATA}/lio`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ ...newLio })
+    }), async () => { setNewLio({}); getLios(); });
+
+
+    return (
+        <div className="space-y-3">
+            <div className="overflow-auto border border-black bg-[#c0c0c0]">
+                <table className="w-full border-collapse text-sm">
+                    <thead>
+                        <tr>
+                            <th className="px-2 py-1 border-t-white border-l-white border-r-[#404040] border-b-[#404040] bg-[#c0c0c0] text-left">Provider</th>
+                            <th className="px-2 py-1 border-t-white border-l-white border-r-[#404040] border-b-[#404040] bg-[#c0c0c0] text-left">Station</th>
+                            <th className="px-2 py-1 border-t-white border-l-white border-r-[#404040] border-b-[#404040] bg-[#c0c0c0] text-left">Line</th>
+                            <th className="px-2 py-1 border-t-white border-l-white border-r-[#404040] border-b-[#404040] bg-[#c0c0c0] text-left">Direction</th>
+                            <th className="px-2 py-1 border-t-white border-l-white border-r-[#404040] border-b-[#404040] bg-[#c0c0c0]">Delete</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {lios.map(lio => (
+                            <tr key={lio.id}>
+                                <td className="px-2 py-1 border-t-[#404040] border-l-[#404040] border-r-white border-b-white bg-white">{lio.provider}</td>
+                                <td className="px-2 py-1 border-t-[#404040] border-l-[#404040] border-r-white border-b-white bg-white">{lio.station}</td>
+                                <td className="px-2 py-1 border-t-[#404040] border-l-[#404040] border-r-white border-b-white bg-white">{lio.line}</td>
+                                <td className="px-2 py-1 border-t-[#404040] border-l-[#404040] border-r-white border-b-white bg-white">{lio.direction}</td>
+                                <td className="px-2 py-1 border-t-[#404040] border-l-[#404040] border-r-white border-b-white bg-white text-center">
+                                    <button
+                                        onClick={() => deleteLio(lio.id)}
+                                        className="win98-btn text-xs px-2 py-0.5"
+                                    >
+                                        Delete
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* Add new LIO form */}
+            <div className="border border-black bg-[#c0c0c0] p-2 space-y-2">
+                <p className="text-sm font-bold">Add new LIO</p>
+
+                {/* First row: Provider + Station */}
+                <div className="grid grid-cols-2 gap-2">
+                    <select
+                        value={newLio.provider || ""}
+                        onChange={e => setNewLio(prev => ({ ...prev, provider: e.target.value }))}
+                        className="win98-input"
+                    >
+                        <option value="" disabled>Select provider</option>
+                        <option value="Wiener Linien">Wiener Linien</option>
+                        <option value="OEBB">ÖBB</option>
+                    </select>
+
+                    <input
+                        placeholder="Station"
+                        value={newLio.station || ""}
+                        onChange={e => setNewLio(prev => ({ ...prev, station: e.target.value }))}
+                        className="win98-input"
+                    />
+                </div>
+
+                {/* Second row: Line + Direction */}
+                <div className="grid grid-cols-2 gap-2">
+                    <input
+                        placeholder="Line"
+                        value={newLio.line || ""}
+                        onChange={e => setNewLio(prev => ({ ...prev, line: e.target.value }))}
+                        className="win98-input"
+                    />
+                    <input
+                        placeholder="Direction"
+                        value={newLio.direction || ""}
+                        onChange={e => setNewLio(prev => ({ ...prev, direction: e.target.value }))}
+                        className="win98-input"
+                    />
+                </div>
+
+                <button
+                    onClick={postLio}
+                    className="win98-btn mt-2"
+                >
+                    Add LIO
+                </button>
+            </div>
+        </div>
+    );
+}
+
+interface ICustomTextTabProps {
+    fetchAndHandle: <T>(fetchF: () => Promise<Response>, handleF: (t: T) => Promise<void>) => Promise<boolean>
+};
+
+const CustomTextTab = ({ fetchAndHandle }: ICustomTextTabProps) => {
+
+    const [text, setText] = useState<string>("");
+
+    useEffect(() => {
+        const getText = () =>
+            fetchAndHandle<{ text: string }>(() => fetch(`${BASE_URL_RGB}/text`), async json => setText(json.text));
+
+        getText();
+    }, [fetchAndHandle]);
+
+    const postText = (text: string) => fetchAndHandle<void>(() => fetch(`${BASE_URL_RGB}/text`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ text })
+    }), async () => { });
+
+    return (
+        <div className="space-y-2">
+            <label className="block text-sm">Custom LED text:</label>
+
+            <input
+                value={text}
+                onChange={e => setText(e.target.value)}
+                className="win98-input"
+                placeholder="Hello world"
+            />
+
+
+            <div className="text-right">
+                <button
+                    className="win98-btn"
+                    onClick={() => postText(text)}
+                >
+                    Update Text
+                </button>
+            </div>
+        </div>
+    );
+}
+

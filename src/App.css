@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+@layer components {
+    .win98-btn {
+        @apply
+        bg-[#c0c0c0]
+        text-black
+        px-3 py-1
+        text-sm
+        border
+        border-t-white
+        border-l-white
+        border-r-[#404040]
+        border-b-[#404040]
+        active:border-t-[#404040]
+        active:border-l-[#404040]
+        active:border-r-white
+        active:border-b-white
+        active:translate-x-[1px]
+        active:translate-y-[1px];
+    }
+
+    .win98-tab {
+        @apply
+        bg-[#c0c0c0]
+        px-3 py-1
+        text-sm
+        border
+        border-t-white
+        border-l-white
+        border-r-[#404040]
+        border-b-[#404040];
+    }
+
+    .win98-tab-active {
+        @apply
+        bg-[#c0c0c0]
+        px-3 py-1
+        text-sm
+        border
+        border-t-[#404040]
+        border-l-[#404040]
+        border-r-white
+        border-b-white;
+    }
+
+    .win98-input {
+        @apply
+        w-full
+        bg-white
+        text-black
+        text-sm
+        px-2 py-1
+        border
+        border-t-[#404040]
+        border-l-[#404040]
+        border-r-white
+        border-b-white
+        outline-none;
+    }
+
+    .win98-input:focus {
+        outline: 2px solid #000080;
+        outline-offset: 0px;
+    }
+
+    .win98-input:disabled {
+        background-color: #c0c0c0;
+        color: #808080;
+    }
+
+    @keyframes win98-segmented {
+        0% {
+            transform: translateX(-100%);
+        }
+        100% {
+            transform: translateX(300%);
+        }
+    }
+
+    .win98-progress-fill {
+        width: 40%;
+        background-color: #000080;
+        background-image:
+        repeating-linear-gradient(90deg, #000080 0px, #000080 8px, #ffffff 9px);
+        animation: win98-segmented 1s steps(12) infinite;
+    }
+}
