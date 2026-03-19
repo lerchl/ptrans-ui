@@ -33,8 +33,8 @@ jobs:
         run: |
           docker build \
             --build-arg PORT=${{ vars.PORT }} \
-            --build-arg VITE_BASE_URL_RGB=${{ vars.URL_DATA }} \
-            --build-arg VITE_BASE_URL_DATA=${{ vars.URL_RGB }} \
+            --build-arg VITE_BASE_URL_RGB=${{ vars.URL_RGB }} \
+            --build-arg VITE_BASE_URL_DATA=${{ vars.URL_DATA }} \
             -t ghcr.io/${{ github.repository_owner }}/ptrans-ui:${{ env.VERSION }} \
             -t ghcr.io/${{ github.repository_owner }}/ptrans-ui:latest \
             -f Containerfile .
