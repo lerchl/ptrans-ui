@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type JSX } from "react"
 import "./App.css"
 import clsx from "clsx";
 
+const VERSION_UI = import.meta.env.VITE_APP_VERSION ?? "unknown";
 const BASE_URL_RGB = import.meta.env.VITE_BASE_URL_RGB;
 const BASE_URL_DATA = import.meta.env.VITE_BASE_URL_DATA;
 
@@ -30,15 +31,16 @@ export const App = () => {
 
                 setLoading(false);
                 return true;
+            } else if (res.status === 404) {
+                errorMessage = res.status + " " + res.url;
             } else {
                 errorMessage = res.status + "\n" + res.body;
             }
         } catch (e) {
             if (e instanceof TypeError || e instanceof SyntaxError) {
-                errorMessage += e.message;
-                errorMessage += e.stack;
+                errorMessage = e.message + "\n" + e.stack;
             } else {
-                errorMessage += JSON.stringify(e);
+                errorMessage = JSON.stringify(e);
             }
         }
 
@@ -47,10 +49,17 @@ export const App = () => {
         return false;
     }, []);
 
+    const [versionRgb, setVersionRgb] = useState<string>("unknown");
+    const [versionData, setVersionData] = useState<string>("unknown");
     const [mode, setMode] = useState<number>(0);
 
     useEffect(() => {
+        const getVersionRgb = async () => fetchAndHandle<{ version: string; }>(() => fetch(`${BASE_URL_RGB}/version`), async json => setVersionRgb(json.version));
+        const getVersionData = async () => fetchAndHandle<{ version: string; }>(() => fetch(`${BASE_URL_DATA}/version`), async json => setVersionData(json.version));
         const getMode = async () => fetchAndHandle<{ mode: number; }>(() => fetch(`${BASE_URL_RGB}/mode`), async json => setMode(json.mode));
+
+        getVersionRgb();
+        getVersionData();
         getMode();
     }, [fetchAndHandle]);
 
@@ -70,9 +79,14 @@ export const App = () => {
 
     return (
         <div className="h-screen bg-[#008080] flex flex-col font-sans">
-            <div className="flex-1 flex items-center justify-center">
+            <div className="flex-1 flex items-center justify-center space-x-5">
                 <Window modal show={loading} title="Loading" content={<Win98ProgressBar />} />
-                <Window show={true} title="Settings" content={<><Tabs current={mode} onChange={updateMode} />
+                <Window show={true} title="Info" content={<InfoContent componentVersions={[
+                    { component: "UI", version: VERSION_UI },
+                    { component: "RGB", version: versionRgb },
+                    { component: "Data", version: versionData }
+                ]} />} />
+                <Window show={true} title="Content" content={<><Tabs current={mode} onChange={updateMode} />
                     {mode === 0 && <TimetableTab fetchAndHandle={fetchAndHandle} />}
                     {mode === 1 && <CustomTextTab fetchAndHandle={fetchAndHandle} />}
                 </>} />
@@ -158,7 +172,22 @@ function Taskbar() {
           text-sm
         "
             >
-                Settings
+                Info
+            </div>
+
+            <div
+                className="
+          bg-[#c0c0c0]
+          px-3 py-1
+          border
+          border-t-[#404040]
+          border-l-[#404040]
+          border-r-white
+          border-b-white
+          text-sm
+        "
+            >
+                Content
             </div>
 
             {/* system tray spacer */}
@@ -281,6 +310,40 @@ function TitleBar({ title, closeAction }: ITitleBarProps) {
                     onClick={closeAction}>
                     ×
                 </button>
+            </div>
+        </div>
+    );
+}
+
+interface IInfoContentProps {
+    componentVersions: {
+        component: string;
+        version: string;
+    }[];
+};
+
+const InfoContent = ({ componentVersions }: IInfoContentProps) => {
+
+    return (
+        <div className="space-y-3">
+            <div className="overflow-auto border border-black bg-[#c0c0c0]">
+                <table className="w-full border-collapse text-sm">
+                    <thead>
+                        <tr>
+                            <th className="px-2 py-1 border-t-white border-l-white border-r-[#404040] border-b-[#404040] bg-[#c0c0c0] text-left">Component</th>
+                            <th className="px-2 py-1 border-t-white border-l-white border-r-[#404040] border-b-[#404040] bg-[#c0c0c0] text-left">Version</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {
+                            componentVersions.map(cv => <tr key={cv.component}>
+                                <td className="px-2 py-1 border-t-[#404040] border-l-[#404040] border-r-white border-b-white bg-white">{cv.component}</td>
+                                <td className="px-2 py-1 border-t-[#404040] border-l-[#404040] border-r-white border-b-white bg-white">{cv.version}</td>
+                            </tr>)
+                        }
+                    </tbody>
+                </table>
             </div>
         </div>
     );
