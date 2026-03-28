@@ -20,7 +20,7 @@ type FetchAndHandleFunction = <T>(args: IFetchAndHandleFunctionArgs<T>) => Promi
 
 export const App = () => {
 
-    const [loading, setLoading] = useState<number>(0)
+    const [loading, setLoading] = useState<number>(0);
     const [error, setError] = useState<IError | null>(null);
 
     const fetchAndHandle = useCallback(async function <T>(args: IFetchAndHandleFunctionArgs<T>): Promise<boolean> {
@@ -112,13 +112,13 @@ export const App = () => {
 
         <div className="h-screen bg-[#008080] flex flex-col font-sans">
             <div className="flex-1 flex items-center justify-center space-x-5">
-                <Window modal show={loading > 0} title="Loading" content={<Win98ProgressBar />} />
+                <Window modal show={loading > 0} title="Loading" minWidth={400} content={<Win98ProgressBar />} />
                 <Window show={true} title="Info" content={<InfoContent componentVersions={[
                     { component: "UI", version: VERSION_UI },
                     { component: "RGB", version: versionRgb },
                     { component: "Data", version: versionData }
                 ]} />} />
-                <Window show={true} title="Content" content={<><Tabs current={mode} onChange={updateMode} />
+                <Window show={true} title="Content" minWidth={480} content={<><Tabs current={mode} onChange={updateMode} />
                     {mode === 0 && <TimetableTab fetchAndHandle={fetchAndHandle} />}
                     {mode === 1 && <CustomTextTab fetchAndHandle={fetchAndHandle} />}
                 </>} />
@@ -297,11 +297,12 @@ interface IWindowProps {
     show: boolean;
     title: string;
     content: JSX.Element;
+    minWidth?: number;
     modal?: boolean;
     closeAction?: () => void;
 }
 
-const Window = ({ show, title, content, modal = false, closeAction }: IWindowProps) => {
+const Window = ({ show, title, content, minWidth = 40, modal = false, closeAction }: IWindowProps) => {
     if (!show) return null;
 
     return (
@@ -312,7 +313,9 @@ const Window = ({ show, title, content, modal = false, closeAction }: IWindowPro
                 <div className="absolute inset-0 bg-black opacity-40"></div>
             )}
 
-            <div className="bg-[#c0c0c0] border border-t-white border-l-white border-r-[#404040] border-b-[#404040] min-w-[100px] z-50">
+            <div
+                style={{ minWidth: `${minWidth}px` }}
+                className="bg-[#c0c0c0] border border-t-white border-l-white border-r-[#404040] border-b-[#404040] z-50">
                 <TitleBar title={title} closeAction={closeAction} />
                 <div className="p-3">{content}</div>
             </div>
