@@ -13,7 +13,7 @@ interface IError {
 
 interface IFetchAndHandleFunctionArgs<T> {
     fetchF: () => Promise<Response>,
-    handleF?: (t: T) => void,
+    handleF?: (t: T | null) => void,
     noLoadingWindow?: boolean
 }
 type FetchAndHandleFunction = <T>(args: IFetchAndHandleFunctionArgs<T>) => Promise<boolean>;
@@ -34,12 +34,8 @@ export const App = () => {
             const res = await args.fetchF();
 
             if (res.ok) {
-                if (res.status === 200) {
-                    const json: T = await res.json();
-
-                    if (args.handleF) {
-                        args.handleF(json);
-                    }
+                if (args.handleF) {
+                    args.handleF(res.status !== 204 ? await res.json() : null);
                 }
 
                 if (!args.noLoadingWindow) {
@@ -84,9 +80,9 @@ export const App = () => {
     const [mode, setMode] = useState<number>(0);
 
     useEffect(() => {
-        const getVersionRgb = async () => fetchAndHandle<{ version: string; }>({ fetchF: () => fetch(`${BASE_URL_RGB}/version`), handleF: json => setVersionRgb(json.version) });
-        const getVersionData = async () => fetchAndHandle<{ version: string; }>({ fetchF: () => fetch(`${BASE_URL_DATA}/version`), handleF: json => setVersionData(json.version) });
-        const getMode = async () => fetchAndHandle<{ mode: number; }>({ fetchF: () => fetch(`${BASE_URL_RGB}/mode`), handleF: json => setMode(json.mode) });
+        const getVersionRgb = async () => fetchAndHandle<{ version: string; }>({ fetchF: () => fetch(`${BASE_URL_RGB}/version`), handleF: json => setVersionRgb(json!.version) });
+        const getVersionData = async () => fetchAndHandle<{ version: string; }>({ fetchF: () => fetch(`${BASE_URL_DATA}/version`), handleF: json => setVersionData(json!.version) });
+        const getMode = async () => fetchAndHandle<{ mode: number; }>({ fetchF: () => fetch(`${BASE_URL_RGB}/mode`), handleF: json => setMode(json!.mode) });
 
         getVersionRgb();
         getVersionData();
@@ -396,13 +392,7 @@ const InfoContent = ({ componentVersions }: IInfoContentProps) => {
     );
 }
 
-function Tabs({
-    current,
-    onChange,
-}: {
-    current: number;
-    onChange: (mode: number) => void;
-}) {
+const Tabs = ({ current, onChange }: { current: number; onChange: (mode: number) => void; }) => {
     return (
         <div className="flex gap-1 mb-3">
             <button
@@ -440,7 +430,7 @@ const TimetableTab = ({ fetchAndHandle }: ITimetableTabProps) => {
     const [newLio, setNewLio] = useState<Partial<ILio>>({});
 
     const getLios = useCallback(() =>
-        fetchAndHandle<ILio[]>({ fetchF: () => fetch(`${BASE_URL_DATA}/lio`), handleF: json => setLios(json) }), [fetchAndHandle]);
+        fetchAndHandle<ILio[]>({ fetchF: () => fetch(`${BASE_URL_DATA}/lio`), handleF: json => setLios(json!) }), [fetchAndHandle]);
 
     useEffect(() => {
         getLios();
@@ -449,9 +439,9 @@ const TimetableTab = ({ fetchAndHandle }: ITimetableTabProps) => {
     const deleteLio = (id: string) => fetchAndHandle<void>({
         fetchF: () => fetch(`${BASE_URL_DATA}/lio/${id}`, {
             method: "DELETE"
-        })
+        }),
+        handleF: () => getLios()
     });
-
 
     const postLio = () => fetchAndHandle<ILio>({
         fetchF: () => fetch(`${BASE_URL_DATA}/lio`, {
@@ -460,9 +450,9 @@ const TimetableTab = ({ fetchAndHandle }: ITimetableTabProps) => {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({ ...newLio })
-        }), handleF: () => { setNewLio({}); getLios(); }
+        }),
+        handleF: () => { setNewLio({}); getLios(); }
     });
-
 
     return (
         <div className="space-y-3">
@@ -557,7 +547,7 @@ const CustomTextTab = ({ fetchAndHandle }: ICustomTextTabProps) => {
 
     useEffect(() => {
         const getText = () =>
-            fetchAndHandle<{ text: string }>({ fetchF: () => fetch(`${BASE_URL_RGB}/text`), handleF: json => setText(json.text) });
+            fetchAndHandle<{ text: string }>({ fetchF: () => fetch(`${BASE_URL_RGB}/text`), handleF: json => setText(json!.text) });
 
         getText();
     }, [fetchAndHandle]);
@@ -605,7 +595,7 @@ const BrightnessContent = ({ fetchAndHandle }: IBrightnessContentProps) => {
     const [brightness, setBrightness] = useState(0);
 
     useEffect(() => {
-        const getBrightness = () => fetchAndHandle<{ brightness: number }>({ fetchF: () => fetch(`${BASE_URL_RGB}/brightness`), handleF: json => { setBrightness(json.brightness) } });
+        const getBrightness = () => fetchAndHandle<{ brightness: number }>({ fetchF: () => fetch(`${BASE_URL_RGB}/brightness`), handleF: json => { setBrightness(json!.brightness) } });
         getBrightness();
     }, [fetchAndHandle]);
 
