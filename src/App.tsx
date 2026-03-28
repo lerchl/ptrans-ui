@@ -18,6 +18,10 @@ interface IFetchAndHandleFunctionArgs<T> {
 }
 type FetchAndHandleFunction = <T>(args: IFetchAndHandleFunctionArgs<T>) => Promise<boolean>;
 
+interface ErrorDto {
+    message: string;
+}
+
 export const App = () => {
 
     const [loading, setLoading] = useState<number>(0);
@@ -46,7 +50,7 @@ export const App = () => {
             } else if (res.status === 404) {
                 errorMessage = res.status + " " + res.url;
             } else {
-                errorMessage = res.status + "\n" + res.body;
+                errorMessage = res.status + "\n" + (await res.json() as ErrorDto).message;
             }
         } catch (e) {
             if (e instanceof TypeError || e instanceof SyntaxError) {
@@ -412,7 +416,7 @@ const Tabs = ({ current, onChange }: { current: number; onChange: (mode: number)
     );
 }
 
-interface ILio {
+interface LioDto {
     id: string,
     provider: string,
     station: string,
@@ -426,11 +430,11 @@ interface ITimetableTabProps {
 
 const TimetableTab = ({ fetchAndHandle }: ITimetableTabProps) => {
 
-    const [lios, setLios] = useState<ILio[]>([]);
-    const [newLio, setNewLio] = useState<Partial<ILio>>({});
+    const [lios, setLios] = useState<LioDto[]>([]);
+    const [newLio, setNewLio] = useState<Partial<LioDto>>({});
 
     const getLios = useCallback(() =>
-        fetchAndHandle<ILio[]>({ fetchF: () => fetch(`${BASE_URL_DATA}/lio`), handleF: json => setLios(json!) }), [fetchAndHandle]);
+        fetchAndHandle<LioDto[]>({ fetchF: () => fetch(`${BASE_URL_DATA}/lio`), handleF: json => setLios(json!) }), [fetchAndHandle]);
 
     useEffect(() => {
         getLios();
@@ -443,7 +447,7 @@ const TimetableTab = ({ fetchAndHandle }: ITimetableTabProps) => {
         handleF: () => getLios()
     });
 
-    const postLio = () => fetchAndHandle<ILio>({
+    const postLio = () => fetchAndHandle<LioDto>({
         fetchF: () => fetch(`${BASE_URL_DATA}/lio`, {
             method: "POST",
             headers: {
