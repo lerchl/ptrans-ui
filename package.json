@@ -1,11 +1,11 @@
 {
     "name": "ptrans-ui",
     "private": true,
-    "version": "0.1.0",
+    "version": "0.2.0",
     "type": "module",
     "scripts": {
-        "dev": "VITE_BASE_URL_RGB=http://192.168.10.100:8080 VITE_BASE_URL_DATA=http://localhost:3000 vite --host",
-        "build": "tsc -b && vite build",
+        "dev": "VITE_APP_VERSION=$npm_package_version VITE_BASE_URL_RGB=https://ptrans-rgb.home.l3rchl.at VITE_BASE_URL_DATA=https://ptrans-data.home.l3rchl.at vite --host",
+        "build": "tsc -b && VITE_APP_VERSION=$npm_package_version vite build",
         "lint": "eslint .",
         "preview": "vite preview"
     },
