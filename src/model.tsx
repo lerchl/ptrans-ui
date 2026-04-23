@@ -32,3 +32,11 @@ export interface ConfigurationDto {
     blackoutWindow: BlackoutWindowDto;
     colors: ColorsDto;
 }
+
+export interface LioDto {
+    id: string,
+    provider: string,
+    station: string,
+    line: string,
+    direction: string
+};
