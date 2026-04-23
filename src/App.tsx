@@ -731,8 +731,6 @@ const BrightnessContent = ({ brightness, onChange }: IBrightnessContentProps) =>
 
     return (
         <div className="flex flex-col items-center gap-2 py-1">
-            <span className="text-sm select-none">☀️</span>
-
             <div
                 className="relative cursor-pointer"
                 style={{ width: "28px", height: `${trackHeight}px` }}
@@ -774,8 +772,6 @@ const BrightnessContent = ({ brightness, onChange }: IBrightnessContentProps) =>
                     </div>
                 </div>
             </div>
-
-            <span className="text-sm select-none">🌑</span>
 
             <div className="px-2 py-0.5 text-xs bg-white border border-t-[#404040] border-l-[#404040] border-r-white border-b-white min-w-[40px] text-center font-mono">
                 {displayed}
