@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState, type JSX } from "react"
 import "./App.css"
 import clsx from "clsx";
-import { ColorPicker } from "./components/ColorPicker";
 import { BrightnessContent } from "./components/BrightnessContent";
+import type { ConfigurationDto, ErrorDto } from "./model";
+import { ColorsContent } from "./components/ColorsContent";
 
 const VERSION_UI = import.meta.env.VITE_APP_VERSION ?? "unknown";
 const BASE_URL_RGB = import.meta.env.VITE_BASE_URL_RGB;
@@ -20,40 +21,6 @@ interface IFetchAndHandleFunctionArgs<T> {
 }
 type FetchAndHandleFunction = <T>(args: IFetchAndHandleFunctionArgs<T>) => Promise<boolean>;
 
-interface ErrorDto {
-    message: string;
-}
-
-interface Time {
-    hour: number;
-    minute: number;
-}
-
-interface BlackoutWindowDto {
-    start: Time;
-    end: Time;
-    override: boolean;
-}
-
-interface Color {
-    r: number;
-    g: number;
-    b: number;
-}
-
-interface ColorsDto {
-    fgDefault: Color;
-    fgPunctual: Color;
-    fgLate: Color;
-    fgTraffic: Color;
-}
-
-interface ConfigurationDto {
-    mode: 0 | 1;
-    brightness: number;
-    blackoutWindow: BlackoutWindowDto;
-    colors: ColorsDto;
-}
 
 export const App = () => {
 
@@ -175,83 +142,6 @@ export const App = () => {
         </div>
     )
 }
-
-interface IColorsContentProps {
-    colors: undefined | ColorsDto;
-    patchColors: (colors: ColorsDto) => void;
-};
-
-const hexToRgb = (hex: string) => ({
-    r: parseInt(hex.slice(1, 3), 16),
-    g: parseInt(hex.slice(3, 5), 16),
-    b: parseInt(hex.slice(5, 7), 16),
-});
-
-const rgbToHex = (color: Color) =>
-    "#" + [color.r, color.g, color.b].map(v => v.toString(16).padStart(2, "0")).join("");
-
-const ColorsContent = ({ colors, patchColors }: IColorsContentProps) => {
-    type ColorKey = "default" | "punctual" | "late" | "traffic";
-
-    const black: Color = { r: 0, g: 0, b: 0 };
-
-    const [selected, setSelected] = useState<ColorKey>("default");
-    const [edits, setEdits] = useState<Partial<Record<ColorKey, string>>>({});
-
-    const colorLabels: Record<ColorKey, string> = {
-        default: "Default foreground",
-        punctual: "Punctual foreground",
-        late: "Late foreground",
-        traffic: "Traffic jam foreground",
-    };
-
-    const resolved: Record<ColorKey, string> = {
-        default: edits.default ?? rgbToHex(colors?.fgDefault ?? black),
-        punctual: edits.punctual ?? rgbToHex(colors?.fgPunctual ?? black),
-        late: edits.late ?? rgbToHex(colors?.fgLate ?? black),
-        traffic: edits.traffic ?? rgbToHex(colors?.fgTraffic ?? black),
-    };
-
-    const setColor = (value: string) =>
-        setEdits(prev => ({ ...prev, [selected]: value }));
-
-    return (
-        <div className="space-y-3" style={{ minWidth: "220px" }}>
-            <div className="border border-black bg-[#c0c0c0] p-2 space-y-1">
-                {(Object.keys(colorLabels) as ColorKey[]).map(key => (
-                    <label key={key} className="flex items-center gap-2 text-sm cursor-pointer select-none">
-                        <input
-                            type="radio"
-                            name="colorTarget"
-                            checked={selected === key}
-                            onChange={() => setSelected(key)}
-                            className="accent-[#000080]"
-                        />
-                        <span
-                            style={{ backgroundColor: resolved[key] }}
-                            className="inline-block w-4 h-4 border border-t-[#404040] border-l-[#404040] border-r-white border-b-white flex-shrink-0"
-                        />
-                        {colorLabels[key]}
-                    </label>
-                ))}
-            </div>
-            <ColorPicker value={resolved[selected]} onChange={setColor} />
-            <div className="text-right">
-                <button className="win98-btn" onClick={() => {
-                    patchColors({
-                        fgDefault: hexToRgb(resolved.default),
-                        fgPunctual: hexToRgb(resolved.punctual),
-                        fgLate: hexToRgb(resolved.late),
-                        fgTraffic: hexToRgb(resolved.traffic),
-                    });
-                    setEdits({});
-                }}>
-                    Apply Colors
-                </button>
-            </div>
-        </div>
-    );
-};
 
 function Win98ProgressBar() {
     return (
