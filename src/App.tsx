@@ -6,6 +6,7 @@ import type { ConfigurationDto, ErrorDto } from "./model";
 import { ColorsContent } from "./components/ColorsContent";
 import { TimetableTab } from "./components/TimetableTab";
 import { CustomTextTab } from "./components/CustomTextTab";
+import { BlackoutWindowContent } from "./components/BlackoutWindowContenxt";
 
 const VERSION_UI = import.meta.env.VITE_APP_VERSION ?? "unknown";
 const BASE_URL_RGB = import.meta.env.VITE_BASE_URL_RGB;
@@ -126,6 +127,12 @@ export const App = () => {
                     {configuration?.mode === 0 && <TimetableTab fetchAndHandle={fetchAndHandle} />}
                     {configuration?.mode === 1 && <CustomTextTab fetchAndHandle={fetchAndHandle} />}
                 </>} />
+                <Window show={true} title="Blackout Window" content={
+                    <BlackoutWindowContent
+                        blackoutWindow={configuration?.blackoutWindow}
+                        patchBlackoutWindow={blackoutWindow => patchConfiguration({ blackoutWindow })}
+                    />
+                } />
                 <Window show={true} title="Brightness" content={<BrightnessContent brightness={configuration?.brightness} onChange={brightness => patchConfiguration({ brightness }, true, false)} />} />
                 <Window show={true} title="Colors" content={<ColorsContent colors={configuration?.colors} patchColors={colors => patchConfiguration({ colors })} />} />
                 <Window modal closeAction={() => setError(null)} show={!!error} title="Error" content={<div className="flex gap-3 items-start">
@@ -228,6 +235,21 @@ function Taskbar() {
         "
             >
                 Content
+            </div>
+
+            <div
+                className="
+          bg-[#c0c0c0]
+          px-3 py-1
+          border
+          border-t-[#404040]
+          border-l-[#404040]
+          border-r-white
+          border-b-white
+          text-sm
+        "
+            >
+                Blackout Window
             </div>
 
             <div
