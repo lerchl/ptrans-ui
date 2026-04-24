@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 interface IBrightnessContentProps {
     brightness: undefined | number;
@@ -7,9 +7,9 @@ interface IBrightnessContentProps {
 
 export const BrightnessContent = ({ brightness, onChange }: IBrightnessContentProps) => {
     const [dragging, setDragging] = useState<number | null>(null);
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const displayed = dragging ?? brightness ?? 0;
-
     const trackHeight = 160;
     const thumbSize = 20;
     const travel = trackHeight - thumbSize;
@@ -17,7 +17,13 @@ export const BrightnessContent = ({ brightness, onChange }: IBrightnessContentPr
 
     const handleChange = (value: number) => {
         setDragging(value);
-        onChange(value);
+        if (debounceRef.current) {
+            clearTimeout(debounceRef.current);
+        }
+        debounceRef.current = setTimeout(() => {
+            onChange(value);
+            debounceRef.current = null;
+        }, 200);
     };
 
     const handleTrackClick = (e: React.MouseEvent<HTMLDivElement>) => {
