@@ -4,7 +4,7 @@ import { ColorPicker } from "./ColorPicker";
 
 interface IColorsContentProps {
     colors: undefined | ColorsDto;
-    patchColors: (colors: ColorsDto) => void;
+    patchColors: (colors: ColorsDto) => Promise<void>;
 };
 
 const hexToRgb = (hex: string) => ({
@@ -63,18 +63,17 @@ export const ColorsContent = ({ colors, patchColors }: IColorsContentProps) => {
             </div>
             <ColorPicker value={resolved[selected]} onChange={setColor} />
             <div className="text-right">
-                <button className="win98-btn" onClick={() => {
+                <button className="win98-btn" onClick={() =>
                     patchColors({
                         fgDefault: hexToRgb(resolved.default),
                         fgPunctual: hexToRgb(resolved.punctual),
                         fgLate: hexToRgb(resolved.late),
                         fgTraffic: hexToRgb(resolved.traffic),
-                    });
-                    setEdits({});
-                }}>
-                    Apply Colors
+                    })
+                }>
+                    Apply
                 </button>
             </div>
-        </div>
+        </div >
     );
 };

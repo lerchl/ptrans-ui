@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState, type JSX } from "react"
-import "./App.css"
 import clsx from "clsx";
 import { BrightnessContent } from "./components/BrightnessContent";
 import type { ConfigurationDto, ErrorDto } from "./model";
@@ -141,6 +140,7 @@ export const App = () => {
                 } />
                 <Window show={showBrightnessWindow} title="Brightness" content={<BrightnessContent brightness={configuration?.brightness} onChange={brightness => patchConfiguration({ brightness }, true, false)} />} />
                 <Window show={showColorsWindow} title="Colors" content={<ColorsContent colors={configuration?.colors} patchColors={colors => patchConfiguration({ colors })} />} />
+
                 <Window modal closeAction={() => setError(null)} show={!!error} title="Error" content={<div className="flex gap-3 items-start">
                     <Win98ErrorIcon />
 
@@ -301,8 +301,10 @@ interface IWindowProps {
     closeAction?: () => void;
 }
 
-const Window = ({ show, title, content, minWidth = 40, modal = false, closeAction }: IWindowProps) => {
-    if (!show) return null;
+export const Window = ({ show, title, content, minWidth = 40, modal = false, closeAction }: IWindowProps) => {
+    if (!show) {
+        return null;
+    }
 
     return (
         <div
@@ -327,7 +329,7 @@ interface ITitleBarProps {
     closeAction?: () => void;
 }
 
-function TitleBar({ title, closeAction }: ITitleBarProps) {
+const TitleBar = ({ title, closeAction }: ITitleBarProps) => {
     return (
         <div
             className="
@@ -336,6 +338,7 @@ function TitleBar({ title, closeAction }: ITitleBarProps) {
         px-2 py-1
         flex justify-between items-center
         text-sm
+        font-bold
       "
         >
             <span>{title}</span>

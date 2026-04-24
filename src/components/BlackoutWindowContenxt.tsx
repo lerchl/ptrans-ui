@@ -36,7 +36,7 @@ const Win98TimeInput = ({ label, value, onChange }: IWin98TimeInputProps) => {
 
 interface IBlackoutWindowContentProps {
     blackoutWindow: undefined | BlackoutWindowDto;
-    patchBlackoutWindow: (blackoutWindow: null | BlackoutWindowDto) => void;
+    patchBlackoutWindow: (blackoutWindow: null | BlackoutWindowDto) => Promise<void>;
 }
 
 export const BlackoutWindowContent = ({ blackoutWindow, patchBlackoutWindow }: IBlackoutWindowContentProps) => {
@@ -66,16 +66,13 @@ export const BlackoutWindowContent = ({ blackoutWindow, patchBlackoutWindow }: I
             </label>
 
             <div className="text-right">
-                <button className="win98-btn" onClick={() => {
+                <button className="win98-btn" onClick={() =>
                     patchBlackoutWindow({
                         start: displayStart,
                         end: displayEnd,
                         override: displayOverride,
-                    });
-                    setEditStart({});
-                    setEditEnd({});
-                    setEditOverride(null);
-                }}>
+                    })
+                }>
                     Apply
                 </button>
             </div>
