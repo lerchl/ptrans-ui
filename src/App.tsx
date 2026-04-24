@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState, type JSX } from "react"
-import "./App.css"
 import clsx from "clsx";
+import { BrightnessContent } from "./components/BrightnessContent";
+import type { ConfigurationDto, ErrorDto } from "./model";
+import { ColorsContent } from "./components/ColorsContent";
+import { TimetableTab } from "./components/TimetableTab";
+import { CustomTextTab } from "./components/CustomTextTab";
+import { BlackoutWindowContent } from "./components/BlackoutWindowContenxt";
 
 const VERSION_UI = import.meta.env.VITE_APP_VERSION ?? "unknown";
 const BASE_URL_RGB = import.meta.env.VITE_BASE_URL_RGB;
@@ -16,11 +21,8 @@ interface IFetchAndHandleFunctionArgs<T> {
     handleF?: (t: T | null) => void,
     noLoadingWindow?: boolean
 }
-type FetchAndHandleFunction = <T>(args: IFetchAndHandleFunctionArgs<T>) => Promise<boolean>;
+export type FetchAndHandleFunction = <T>(args: IFetchAndHandleFunctionArgs<T>) => Promise<boolean>;
 
-interface ErrorDto {
-    message: string;
-}
 
 export const App = () => {
 
@@ -81,48 +83,64 @@ export const App = () => {
 
     const [versionRgb, setVersionRgb] = useState<string>("unknown");
     const [versionData, setVersionData] = useState<string>("unknown");
-    const [mode, setMode] = useState<number>(0);
+    const [configuration, setConfiguration] = useState<null | ConfigurationDto>(null);
 
     useEffect(() => {
         const getVersionRgb = async () => fetchAndHandle<{ version: string; }>({ fetchF: () => fetch(`${BASE_URL_RGB}/version`), handleF: json => setVersionRgb(json!.version) });
         const getVersionData = async () => fetchAndHandle<{ version: string; }>({ fetchF: () => fetch(`${BASE_URL_DATA}/version`), handleF: json => setVersionData(json!.version) });
-        const getMode = async () => fetchAndHandle<{ mode: number; }>({ fetchF: () => fetch(`${BASE_URL_RGB}/mode`), handleF: json => setMode(json!.mode) });
+        const getConfiguration = async () => fetchAndHandle<ConfigurationDto>({ fetchF: () => fetch(`${BASE_URL_RGB}/configuration`), handleF: json => setConfiguration(json) });
 
         getVersionRgb();
         getVersionData();
-        getMode();
+        getConfiguration();
     }, [fetchAndHandle]);
 
-    const updateMode = async (mode: number) => {
+    async function patchConfiguration(payload: unknown, noLoadingWindow: boolean = false, refetch: boolean = true) {
         const success = await fetchAndHandle<void>({
-            fetchF: () => fetch(`${BASE_URL_RGB}/mode`, {
-                method: "POST",
+            fetchF: () => fetch(`${BASE_URL_RGB}/configuration`, {
+                method: "PATCH",
                 headers: {
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify({ mode }),
-            })
+                body: JSON.stringify(payload),
+            }),
+            noLoadingWindow: noLoadingWindow
         });
 
-        if (success) {
-            setMode(mode);
+        if (refetch && success) {
+            fetchAndHandle<ConfigurationDto>({ fetchF: () => fetch(`${BASE_URL_RGB}/configuration`), handleF: json => setConfiguration(json), noLoadingWindow: noLoadingWindow });
         }
     }
+
+    const [showInfoWindow, setShowInfoWindow] = useState<boolean>(true);
+    const [showContentWindow, setShowContentWindow] = useState<boolean>(true);
+    const [showBlackoutWindowWindow, setShowBlackoutWindowWindow] = useState<boolean>(true);
+    const [showBrightnessWindow, setShowBrightnessWindow] = useState<boolean>(true);
+    const [showColorsWindow, setShowColorsWindow] = useState<boolean>(true);
+
     return (
 
         <div className="h-screen bg-[#008080] flex flex-col font-sans">
             <div className="flex-1 flex items-center justify-center space-x-5">
                 <Window modal show={loading > 0} title="Loading" minWidth={400} content={<Win98ProgressBar />} />
-                <Window show={true} title="Info" content={<InfoContent componentVersions={[
+                <Window show={showInfoWindow} title="Info" content={<InfoContent componentVersions={[
                     { component: "UI", version: VERSION_UI },
                     { component: "RGB", version: versionRgb },
                     { component: "Data", version: versionData }
                 ]} />} />
-                <Window show={true} title="Content" minWidth={480} content={<><Tabs current={mode} onChange={updateMode} />
-                    {mode === 0 && <TimetableTab fetchAndHandle={fetchAndHandle} />}
-                    {mode === 1 && <CustomTextTab fetchAndHandle={fetchAndHandle} />}
+                <Window show={showContentWindow} title="Content" minWidth={480} content={<><Tabs current={configuration?.mode} onChange={mode => patchConfiguration({ mode })} />
+                    {configuration?.mode === 0 && <TimetableTab fetchAndHandle={fetchAndHandle} />}
+                    {configuration?.mode === 1 && <CustomTextTab fetchAndHandle={fetchAndHandle} />}
                 </>} />
-                <Window show={true} title="Brightness" content={<BrightnessContent fetchAndHandle={fetchAndHandle} />} />
+                <Window show={showBlackoutWindowWindow} title="Blackout Window" content={
+                    <BlackoutWindowContent
+                        blackoutWindow={configuration?.blackoutWindow}
+                        patchBlackoutWindow={blackoutWindow => patchConfiguration({ blackoutWindow })}
+                    />
+                } />
+                <Window show={showBrightnessWindow} title="Brightness" content={<BrightnessContent brightness={configuration?.brightness} onChange={brightness => patchConfiguration({ brightness }, true, false)} />} />
+                <Window show={showColorsWindow} title="Colors" content={<ColorsContent colors={configuration?.colors} patchColors={colors => patchConfiguration({ colors })} />} />
+
                 <Window modal closeAction={() => setError(null)} show={!!error} title="Error" content={<div className="flex gap-3 items-start">
                     <Win98ErrorIcon />
 
@@ -135,7 +153,13 @@ export const App = () => {
                 </div>} />
             </div>
 
-            <Taskbar />
+            <Taskbar windows={[
+                { label: "Info", show: showInfoWindow, setShow: setShowInfoWindow },
+                { label: "Content", show: showContentWindow, setShow: setShowContentWindow },
+                { label: "Blackout Window", show: showBlackoutWindowWindow, setShow: setShowBlackoutWindowWindow },
+                { label: "Brightness", show: showBrightnessWindow, setShow: setShowBrightnessWindow },
+                { label: "Colors", show: showColorsWindow, setShow: setShowColorsWindow }
+            ]} />
         </div>
     )
 }
@@ -181,7 +205,15 @@ function Win98ErrorIcon() {
     );
 }
 
-function Taskbar() {
+interface ITaskbarProps {
+    windows: {
+        label: string;
+        show: boolean;
+        setShow: (show: boolean) => void;
+    }[];
+}
+
+const Taskbar = ({ windows }: ITaskbarProps) => {
     return (
         <div
             className="
@@ -195,52 +227,19 @@ function Taskbar() {
         >
             <button className="win98-btn font-bold">Start</button>
 
-            <div
-                className="
-          bg-[#c0c0c0]
-          px-3 py-1
-          border
-          border-t-[#404040]
-          border-l-[#404040]
-          border-r-white
-          border-b-white
-          text-sm
-        "
-            >
-                Info
-            </div>
+            {
+                windows.map(window =>
+                    <button key={window.label} className={clsx(
+                        "px-3 py-1 text-sm border",
+                        window.show
+                            ? "bg-[#c0c0c0] border-t-[#404040] border-l-[#404040] border-r-white border-b-white"
+                            : "bg-[#c0c0c0] border-t-white border-l-white border-r-[#404040] border-b-[#404040]"
+                    )} onClick={() => window.setShow(!window.show)}>
+                        {window.label}
+                    </button>
+                )
+            }
 
-            <div
-                className="
-          bg-[#c0c0c0]
-          px-3 py-1
-          border
-          border-t-[#404040]
-          border-l-[#404040]
-          border-r-white
-          border-b-white
-          text-sm
-        "
-            >
-                Content
-            </div>
-
-            <div
-                className="
-          bg-[#c0c0c0]
-          px-3 py-1
-          border
-          border-t-[#404040]
-          border-l-[#404040]
-          border-r-white
-          border-b-white
-          text-sm
-        "
-            >
-                Brightness
-            </div>
-
-            {/* system tray spacer */}
             <div className="ml-auto" />
 
             <Clock />
@@ -302,8 +301,10 @@ interface IWindowProps {
     closeAction?: () => void;
 }
 
-const Window = ({ show, title, content, minWidth = 40, modal = false, closeAction }: IWindowProps) => {
-    if (!show) return null;
+export const Window = ({ show, title, content, minWidth = 40, modal = false, closeAction }: IWindowProps) => {
+    if (!show) {
+        return null;
+    }
 
     return (
         <div
@@ -328,7 +329,7 @@ interface ITitleBarProps {
     closeAction?: () => void;
 }
 
-function TitleBar({ title, closeAction }: ITitleBarProps) {
+const TitleBar = ({ title, closeAction }: ITitleBarProps) => {
     return (
         <div
             className="
@@ -337,6 +338,7 @@ function TitleBar({ title, closeAction }: ITitleBarProps) {
         px-2 py-1
         flex justify-between items-center
         text-sm
+        font-bold
       "
         >
             <span>{title}</span>
@@ -396,7 +398,7 @@ const InfoContent = ({ componentVersions }: IInfoContentProps) => {
     );
 }
 
-const Tabs = ({ current, onChange }: { current: number; onChange: (mode: number) => void; }) => {
+const Tabs = ({ current, onChange }: { current: undefined | 0 | 1; onChange: (mode: number) => void; }) => {
     return (
         <div className="flex gap-1 mb-3">
             <button
@@ -416,277 +418,3 @@ const Tabs = ({ current, onChange }: { current: number; onChange: (mode: number)
     );
 }
 
-interface LioDto {
-    id: string,
-    provider: string,
-    station: string,
-    line: string,
-    direction: string
-};
-
-interface ITimetableTabProps {
-    fetchAndHandle: FetchAndHandleFunction
-};
-
-const TimetableTab = ({ fetchAndHandle }: ITimetableTabProps) => {
-
-    const [lios, setLios] = useState<LioDto[]>([]);
-    const [newLio, setNewLio] = useState<Partial<LioDto>>({});
-
-    const getLios = useCallback(() =>
-        fetchAndHandle<LioDto[]>({ fetchF: () => fetch(`${BASE_URL_DATA}/lio`), handleF: json => setLios(json!) }), [fetchAndHandle]);
-
-    useEffect(() => {
-        getLios();
-    }, [getLios]);
-
-    const deleteLio = (id: string) => fetchAndHandle<void>({
-        fetchF: () => fetch(`${BASE_URL_DATA}/lio/${id}`, {
-            method: "DELETE"
-        }),
-        handleF: () => getLios()
-    });
-
-    const postLio = () => fetchAndHandle<LioDto>({
-        fetchF: () => fetch(`${BASE_URL_DATA}/lio`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ ...newLio })
-        }),
-        handleF: () => { setNewLio({}); getLios(); }
-    });
-
-    return (
-        <div className="space-y-3">
-            <div className="overflow-auto border border-black bg-[#c0c0c0]">
-                <table className="w-full border-collapse text-sm">
-                    <thead>
-                        <tr>
-                            <th className="px-2 py-1 border-t-white border-l-white border-r-[#404040] border-b-[#404040] bg-[#c0c0c0] text-left">Provider</th>
-                            <th className="px-2 py-1 border-t-white border-l-white border-r-[#404040] border-b-[#404040] bg-[#c0c0c0] text-left">Station</th>
-                            <th className="px-2 py-1 border-t-white border-l-white border-r-[#404040] border-b-[#404040] bg-[#c0c0c0] text-left">Line</th>
-                            <th className="px-2 py-1 border-t-white border-l-white border-r-[#404040] border-b-[#404040] bg-[#c0c0c0] text-left">Direction</th>
-                            <th className="px-2 py-1 border-t-white border-l-white border-r-[#404040] border-b-[#404040] bg-[#c0c0c0]">Delete</th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        {lios.map(lio => (
-                            <tr key={lio.id}>
-                                <td className="px-2 py-1 border-t-[#404040] border-l-[#404040] border-r-white border-b-white bg-white">{lio.provider}</td>
-                                <td className="px-2 py-1 border-t-[#404040] border-l-[#404040] border-r-white border-b-white bg-white">{lio.station}</td>
-                                <td className="px-2 py-1 border-t-[#404040] border-l-[#404040] border-r-white border-b-white bg-white">{lio.line}</td>
-                                <td className="px-2 py-1 border-t-[#404040] border-l-[#404040] border-r-white border-b-white bg-white">{lio.direction}</td>
-                                <td className="px-2 py-1 border-t-[#404040] border-l-[#404040] border-r-white border-b-white bg-white text-center">
-                                    <button
-                                        onClick={() => deleteLio(lio.id)}
-                                        className="win98-btn text-xs px-2 py-0.5"
-                                    >
-                                        Delete
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-
-            {/* Add new LIO form */}
-            <div className="border border-black bg-[#c0c0c0] p-2 space-y-2">
-                <p className="text-sm font-bold">Add new LIO</p>
-
-                {/* First row: Provider + Station */}
-                <div className="grid grid-cols-2 gap-2">
-                    <select
-                        value={newLio.provider || ""}
-                        onChange={e => setNewLio(prev => ({ ...prev, provider: e.target.value }))}
-                        className="win98-input"
-                    >
-                        <option value="" disabled>Select provider</option>
-                        <option value="Wiener Linien">Wiener Linien</option>
-                        <option value="OEBB">ÖBB</option>
-                    </select>
-
-                    <input
-                        placeholder="Station"
-                        value={newLio.station || ""}
-                        onChange={e => setNewLio(prev => ({ ...prev, station: e.target.value }))}
-                        className="win98-input"
-                    />
-                </div>
-
-                {/* Second row: Line + Direction */}
-                <div className="grid grid-cols-2 gap-2">
-                    <input
-                        placeholder="Line"
-                        value={newLio.line || ""}
-                        onChange={e => setNewLio(prev => ({ ...prev, line: e.target.value }))}
-                        className="win98-input"
-                    />
-                    <input
-                        placeholder="Direction"
-                        value={newLio.direction || ""}
-                        onChange={e => setNewLio(prev => ({ ...prev, direction: e.target.value }))}
-                        className="win98-input"
-                    />
-                </div>
-
-                <button onClick={postLio} className="win98-btn mt-2">
-                    Add LIO
-                </button>
-            </div>
-        </div>
-    );
-}
-
-interface ICustomTextTabProps {
-    fetchAndHandle: FetchAndHandleFunction
-};
-
-const CustomTextTab = ({ fetchAndHandle }: ICustomTextTabProps) => {
-
-    const [text, setText] = useState<string>("");
-
-    useEffect(() => {
-        const getText = () =>
-            fetchAndHandle<{ text: string }>({ fetchF: () => fetch(`${BASE_URL_RGB}/text`), handleF: json => setText(json!.text) });
-
-        getText();
-    }, [fetchAndHandle]);
-
-    const postText = (text: string) => fetchAndHandle<void>({
-        fetchF: () => fetch(`${BASE_URL_RGB}/text`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ text })
-        })
-    });
-
-    return (
-        <div className="space-y-2">
-            <label className="block text-sm">Custom LED text:</label>
-
-            <input
-                value={text}
-                onChange={e => setText(e.target.value)}
-                className="win98-input"
-                placeholder="Hello world"
-            />
-
-
-            <div className="text-right">
-                <button
-                    className="win98-btn"
-                    onClick={() => postText(text)}
-                >
-                    Update Text
-                </button>
-            </div>
-        </div>
-    );
-}
-
-interface IBrightnessContentProps {
-    fetchAndHandle: FetchAndHandleFunction
-}
-
-const BrightnessContent = ({ fetchAndHandle }: IBrightnessContentProps) => {
-
-    const [brightness, setBrightness] = useState(0);
-
-    useEffect(() => {
-        const getBrightness = () => fetchAndHandle<{ brightness: number }>({ fetchF: () => fetch(`${BASE_URL_RGB}/brightness`), handleF: json => { setBrightness(json!.brightness) } });
-        getBrightness();
-    }, [fetchAndHandle]);
-
-    const updateBrightness = (brightness: number) => {
-        setBrightness(brightness);
-
-        fetchAndHandle({
-            fetchF: () => fetch(`${BASE_URL_RGB}/brightness`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ brightness: brightness })
-            }),
-            noLoadingWindow: true
-        });
-    }
-
-    const trackHeight = 160;
-    const thumbSize = 20;
-    const travel = trackHeight - thumbSize;
-    const thumbTop = travel - Math.round((brightness / 100) * travel);
-
-    const handleTrackClick = (e: React.MouseEvent<HTMLDivElement>) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        const y = e.clientY - rect.top;
-        const value = Math.round((1 - y / trackHeight) * 100);
-        updateBrightness(Math.max(0, Math.min(100, value)));
-    };
-
-    return (
-        <div className="flex flex-col items-center gap-2 py-1">
-            <span className="text-sm select-none">☀️</span>
-
-            {/* Track */}
-            <div
-                className="relative cursor-pointer"
-                style={{ width: "28px", height: `${trackHeight}px` }}
-                onClick={handleTrackClick}
-            >
-                {/* Sunken track groove */}
-                <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0"
-                    style={{ width: "6px" }}>
-                    {/* Outer dark border */}
-                    <div className="absolute inset-0 border border-t-[#404040] border-l-[#404040] border-r-white border-b-white" />
-                    {/* Inner darker inset */}
-                    <div className="absolute inset-px border border-t-[#808080] border-l-[#808080] border-r-[#dfdfdf] border-b-[#dfdfdf] bg-[#c0c0c0]" />
-                </div>
-
-                {/* Thumb */}
-                <div
-                    className="absolute left-1/2 -translate-x-1/2 bg-[#c0c0c0] border border-t-white border-l-white border-r-[#404040] border-b-[#404040] cursor-pointer select-none"
-                    style={{ width: `${thumbSize + 8}px`, height: `${thumbSize}px`, top: `${thumbTop}px` }}
-                    onMouseDown={(e) => {
-                        e.preventDefault();
-                        const track = e.currentTarget.parentElement!;
-                        const onMove = (me: MouseEvent) => {
-                            const rect = track.getBoundingClientRect();
-                            const y = me.clientY - rect.top;
-                            const value = Math.round((1 - y / trackHeight) * 100);
-                            updateBrightness(Math.max(0, Math.min(100, value)));
-                        };
-                        const onUp = () => {
-                            window.removeEventListener("mousemove", onMove);
-                            window.removeEventListener("mouseup", onUp);
-                        };
-                        window.addEventListener("mousemove", onMove);
-                        window.addEventListener("mouseup", onUp);
-                    }}>
-                    {/* Thumb grip lines */}
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-px">
-                        {[0, 1, 2].map(i => (
-                            <div key={i} className="w-3 flex flex-col">
-                                <div className="h-px bg-[#404040]" />
-                                <div className="h-px bg-white" />
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-
-            <span className="text-sm select-none">🌑</span>
-
-            {/* Value readout */}
-            <div className="px-2 py-0.5 text-xs bg-white border border-t-[#404040] border-l-[#404040] border-r-white border-b-white min-w-[40px] text-center font-mono">
-                {brightness}
-            </div>
-        </div>
-    );
-}
