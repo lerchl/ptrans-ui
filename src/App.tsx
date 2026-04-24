@@ -113,28 +113,34 @@ export const App = () => {
         }
     }
 
+    const [showInfoWindow, setShowInfoWindow] = useState<boolean>(true);
+    const [showContentWindow, setShowContentWindow] = useState<boolean>(true);
+    const [showBlackoutWindowWindow, setShowBlackoutWindowWindow] = useState<boolean>(true);
+    const [showBrightnessWindow, setShowBrightnessWindow] = useState<boolean>(true);
+    const [showColorsWindow, setShowColorsWindow] = useState<boolean>(true);
+
     return (
 
         <div className="h-screen bg-[#008080] flex flex-col font-sans">
             <div className="flex-1 flex items-center justify-center space-x-5">
                 <Window modal show={loading > 0} title="Loading" minWidth={400} content={<Win98ProgressBar />} />
-                <Window show={true} title="Info" content={<InfoContent componentVersions={[
+                <Window show={showInfoWindow} title="Info" content={<InfoContent componentVersions={[
                     { component: "UI", version: VERSION_UI },
                     { component: "RGB", version: versionRgb },
                     { component: "Data", version: versionData }
                 ]} />} />
-                <Window show={true} title="Content" minWidth={480} content={<><Tabs current={configuration?.mode} onChange={mode => patchConfiguration({ mode })} />
+                <Window show={showContentWindow} title="Content" minWidth={480} content={<><Tabs current={configuration?.mode} onChange={mode => patchConfiguration({ mode })} />
                     {configuration?.mode === 0 && <TimetableTab fetchAndHandle={fetchAndHandle} />}
                     {configuration?.mode === 1 && <CustomTextTab fetchAndHandle={fetchAndHandle} />}
                 </>} />
-                <Window show={true} title="Blackout Window" content={
+                <Window show={showBlackoutWindowWindow} title="Blackout Window" content={
                     <BlackoutWindowContent
                         blackoutWindow={configuration?.blackoutWindow}
                         patchBlackoutWindow={blackoutWindow => patchConfiguration({ blackoutWindow })}
                     />
                 } />
-                <Window show={true} title="Brightness" content={<BrightnessContent brightness={configuration?.brightness} onChange={brightness => patchConfiguration({ brightness }, true, false)} />} />
-                <Window show={true} title="Colors" content={<ColorsContent colors={configuration?.colors} patchColors={colors => patchConfiguration({ colors })} />} />
+                <Window show={showBrightnessWindow} title="Brightness" content={<BrightnessContent brightness={configuration?.brightness} onChange={brightness => patchConfiguration({ brightness }, true, false)} />} />
+                <Window show={showColorsWindow} title="Colors" content={<ColorsContent colors={configuration?.colors} patchColors={colors => patchConfiguration({ colors })} />} />
                 <Window modal closeAction={() => setError(null)} show={!!error} title="Error" content={<div className="flex gap-3 items-start">
                     <Win98ErrorIcon />
 
@@ -147,7 +153,13 @@ export const App = () => {
                 </div>} />
             </div>
 
-            <Taskbar />
+            <Taskbar windows={[
+                { label: "Info", show: showInfoWindow, setShow: setShowInfoWindow },
+                { label: "Content", show: showContentWindow, setShow: setShowContentWindow },
+                { label: "Blackout Window", show: showBlackoutWindowWindow, setShow: setShowBlackoutWindowWindow },
+                { label: "Brightness", show: showBrightnessWindow, setShow: setShowBrightnessWindow },
+                { label: "Colors", show: showColorsWindow, setShow: setShowColorsWindow }
+            ]} />
         </div>
     )
 }
@@ -193,7 +205,15 @@ function Win98ErrorIcon() {
     );
 }
 
-function Taskbar() {
+interface ITaskbarProps {
+    windows: {
+        label: string;
+        show: boolean;
+        setShow: (show: boolean) => void;
+    }[];
+}
+
+const Taskbar = ({ windows }: ITaskbarProps) => {
     return (
         <div
             className="
@@ -207,82 +227,19 @@ function Taskbar() {
         >
             <button className="win98-btn font-bold">Start</button>
 
-            <div
-                className="
-          bg-[#c0c0c0]
-          px-3 py-1
-          border
-          border-t-[#404040]
-          border-l-[#404040]
-          border-r-white
-          border-b-white
-          text-sm
-        "
-            >
-                Info
-            </div>
+            {
+                windows.map(window =>
+                    <button key={window.label} className={clsx(
+                        "px-3 py-1 text-sm border",
+                        window.show
+                            ? "bg-[#c0c0c0] border-t-[#404040] border-l-[#404040] border-r-white border-b-white"
+                            : "bg-[#c0c0c0] border-t-white border-l-white border-r-[#404040] border-b-[#404040]"
+                    )} onClick={() => window.setShow(!window.show)}>
+                        {window.label}
+                    </button>
+                )
+            }
 
-            <div
-                className="
-          bg-[#c0c0c0]
-          px-3 py-1
-          border
-          border-t-[#404040]
-          border-l-[#404040]
-          border-r-white
-          border-b-white
-          text-sm
-        "
-            >
-                Content
-            </div>
-
-            <div
-                className="
-          bg-[#c0c0c0]
-          px-3 py-1
-          border
-          border-t-[#404040]
-          border-l-[#404040]
-          border-r-white
-          border-b-white
-          text-sm
-        "
-            >
-                Blackout Window
-            </div>
-
-            <div
-                className="
-          bg-[#c0c0c0]
-          px-3 py-1
-          border
-          border-t-[#404040]
-          border-l-[#404040]
-          border-r-white
-          border-b-white
-          text-sm
-        "
-            >
-                Brightness
-            </div>
-
-            <div
-                className="
-          bg-[#c0c0c0]
-          px-3 py-1
-          border
-          border-t-[#404040]
-          border-l-[#404040]
-          border-r-white
-          border-b-white
-          text-sm
-        "
-            >
-                Colors
-            </div>
-
-            {/* system tray spacer */}
             <div className="ml-auto" />
 
             <Clock />
