@@ -6,6 +6,7 @@ import { ColorsContent } from "./components/ColorsContent";
 import { TimetableTab } from "./components/TimetableTab";
 import { CustomTextTab } from "./components/CustomTextTab";
 import { BlackoutWindowContent } from "./components/BlackoutWindowContenxt";
+import { SpotifyWindowContent } from "./components/SpotifyWindowContent";
 
 const VERSION_UI = import.meta.env.VITE_APP_VERSION ?? "unknown";
 const BASE_URL_RGB = import.meta.env.VITE_BASE_URL_RGB;
@@ -28,6 +29,13 @@ export const App = () => {
 
     const [loading, setLoading] = useState<number>(0);
     const [error, setError] = useState<IError | null>(null);
+
+    const [showInfoWindow, setShowInfoWindow] = useState<boolean>(true);
+    const [showContentWindow, setShowContentWindow] = useState<boolean>(true);
+    const [showBlackoutWindowWindow, setShowBlackoutWindowWindow] = useState<boolean>(true);
+    const [showBrightnessWindow, setShowBrightnessWindow] = useState<boolean>(true);
+    const [showColorsWindow, setShowColorsWindow] = useState<boolean>(true);
+    const [showSpotifyWindow, setShowSpotifyWindow] = useState<boolean>(false);
 
     const fetchAndHandle = useCallback(async function <T>(args: IFetchAndHandleFunctionArgs<T>): Promise<boolean> {
         if (args.noLoadingWindow !== true) {
@@ -86,6 +94,16 @@ export const App = () => {
     const [configuration, setConfiguration] = useState<null | ConfigurationDto>(null);
 
     useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.has("spotifyCallback")) {
+            params.delete("spotifyCallback");
+            const newUrl = `${window.location.pathname}${params.toString() ? "?" + params.toString() : ""}`;
+            window.history.replaceState({}, "", newUrl);
+
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setShowSpotifyWindow(true);
+        }
+
         const getVersionRgb = async () => fetchAndHandle<{ version: string; }>({ fetchF: () => fetch(`${BASE_URL_RGB}/version`), handleF: json => setVersionRgb(json!.version) });
         const getVersionData = async () => fetchAndHandle<{ version: string; }>({ fetchF: () => fetch(`${BASE_URL_DATA}/version`), handleF: json => setVersionData(json!.version) });
         const getConfiguration = async () => fetchAndHandle<ConfigurationDto>({ fetchF: () => fetch(`${BASE_URL_RGB}/configuration`), handleF: json => setConfiguration(json) });
@@ -112,14 +130,7 @@ export const App = () => {
         }
     }
 
-    const [showInfoWindow, setShowInfoWindow] = useState<boolean>(true);
-    const [showContentWindow, setShowContentWindow] = useState<boolean>(true);
-    const [showBlackoutWindowWindow, setShowBlackoutWindowWindow] = useState<boolean>(true);
-    const [showBrightnessWindow, setShowBrightnessWindow] = useState<boolean>(true);
-    const [showColorsWindow, setShowColorsWindow] = useState<boolean>(true);
-
     return (
-
         <div className="h-screen bg-[#008080] flex flex-col font-sans">
             <div className="flex-1 flex items-center justify-center space-x-5">
                 <Window modal show={loading > 0} title="Loading" minWidth={400} content={<Win98ProgressBar />} />
@@ -140,6 +151,7 @@ export const App = () => {
                 } />
                 <Window show={showBrightnessWindow} title="Brightness" content={<BrightnessContent brightness={configuration?.brightness} onChange={brightness => patchConfiguration({ brightness }, true, false)} />} />
                 <Window show={showColorsWindow} title="Colors" content={<ColorsContent colors={configuration?.colors} patchColors={colors => patchConfiguration({ colors })} />} />
+                <Window show={showSpotifyWindow} title="Spotify Users" content={<SpotifyWindowContent fetchAndHandle={fetchAndHandle} />} />
 
                 <Window modal closeAction={() => setError(null)} show={!!error} title="Error" content={<div className="flex gap-3 items-start">
                     <Win98ErrorIcon />
@@ -158,7 +170,8 @@ export const App = () => {
                 { label: "Content", show: showContentWindow, setShow: setShowContentWindow },
                 { label: "Blackout Window", show: showBlackoutWindowWindow, setShow: setShowBlackoutWindowWindow },
                 { label: "Brightness", show: showBrightnessWindow, setShow: setShowBrightnessWindow },
-                { label: "Colors", show: showColorsWindow, setShow: setShowColorsWindow }
+                { label: "Colors", show: showColorsWindow, setShow: setShowColorsWindow },
+                { label: "Spotify Users", show: showSpotifyWindow, setShow: setShowSpotifyWindow }
             ]} />
         </div>
     )

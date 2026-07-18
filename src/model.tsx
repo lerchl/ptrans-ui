@@ -40,3 +40,8 @@ export interface LioDto {
     line: string,
     direction: string
 };
+
+export interface UserDto {
+    displayName: string,
+    requiresReAuth: boolean
+};
